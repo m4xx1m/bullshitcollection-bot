@@ -1,0 +1,45 @@
+x-logging: &app-logger
+  logging:
+    driver: "json-file"
+    options:
+      tag: "{{.ImageName}}|{{.Name}}"
+      max-size: "512m"
+      max-file: "1"
+
+services:
+  bot:
+    build:
+      context: src
+    image: bullshitcollection-bot 
+    restart: unless-stopped
+    env_file: .env
+    stop_signal: SIGINT
+    <<: *app-logger
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+
+  migrations:
+    build:
+      context: src
+    env_file: .env
+    command: ["alembic", "upgrade", "head"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:14-alpine
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${DATABASE__USER:?env DATABASE__USER is not set}
+      POSTGRES_PASSWORD: ${DATABASE__PASSWORD:?env DATABASE__PASSWORD is not set}
+      POSTGRES_DB: ${DATABASE__NAME:?env DATABASE__NAME is not set}
+    volumes:
+      - "./volumes/pg-data:/var/lib/postgresql/data"
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${DATABASE__USER} -d ${DATABASE__NAME}'"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
