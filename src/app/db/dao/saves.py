@@ -7,28 +7,21 @@ from app.db import dto, models
 
 
 class SavesDAO(BaseDAO):
-    async def get(self, file_id: str) -> dto.Save | None:
-        if save := self._cache.get(file_id):
-            return save 
-
-        instance = await self._get(file_id)
-        if instance:
-            save = instance.to_dto()
-            self._cache[file_id] = save
-            return save 
-    
-    async def search(
+    async def get(
         self, 
-        query_string: str, 
-        reverse: bool = False,
+        file_id: str | None = None,
+        caption: str | None = None,
+        media_type: dto.MediaType | None = None,
+        reverse: bool | None = None,
         limit: int | None = None
     ) -> list[dto.Save]:
-        query = select(models.Save).where(models.Save.caption.ilike(f"%{query_string}%"))
-        if limit is not None:
-            query = query.limit(limit)
-        if reverse:
-            query = query.order_by(desc(models.Save.id))
-        results = (await self._session.scalars(query)).fetchall()
+        results = await self._get(
+            file_id=file_id,
+            caption=caption, 
+            media_type=media_type,
+            reverse=reverse,
+            limit=limit,
+        )
         return [result.to_dto() for result in results]
 
     async def get_all(
@@ -36,7 +29,11 @@ class SavesDAO(BaseDAO):
         limit: int | None = None,
         reverse: bool = False,
     ) -> list[dto.Save]:
-        return [save.to_dto() for save in await self._get_all(limit, reverse)]
+        results = await self._get_all(
+            limit=limit,
+            reverse=reverse
+        )
+        return [result.to_dto() for result in results]
 
     async def upsert(self, save: dto.Save) -> dto.Save:
         query = Insert(models.Save)\
@@ -64,9 +61,33 @@ class SavesDAO(BaseDAO):
         query = delete(models.Save).where(models.Save.file_id == file_id)
         return (await self._session.execute(query)).rowcount
 
-    async def _get(self, file_id: str) -> models.Save | None:
-        return await self._session.get(models.Save, file_id)
-
+    async def _get(
+        self, 
+        file_id: str | None = None,
+        caption: str | None = None,
+        media_type: dto.MediaType | None = None,
+        reverse: bool | None = None,
+        limit: int | None = None,
+    ) -> list[models.Save]:
+        query = select(models.Save)
+        
+        if type(file_id) is str:
+            query = query.where(models.Save.file_id == file_id)
+        
+        if type(caption) is str:
+            query = query.where(models.Save.caption.ilike(f"%{caption}%"))
+        
+        if type(media_type) is dto.MediaType:
+            query = query.where(models.Save.media_type == media_type)
+        
+        if type(limit) is int:
+            query = query.limit(limit)
+            
+        if reverse:
+            query = query.order_by(desc(models.Save.id))
+        
+        return await self._session.scalars(query)
+    
     async def _get_all(
         self, 
         limit: int | None = None,

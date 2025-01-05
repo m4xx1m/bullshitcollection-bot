@@ -114,7 +114,7 @@ async def search(
         await message.reply("you must provide search query")
         return 
 
-    results = await dao.saves.search(query, limit=5, reverse=True)
+    results = await dao.saves.get(caption=query, limit=5, reverse=True)
     if not results:
         await message.reply("no item found")
         return 

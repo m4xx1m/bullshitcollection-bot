@@ -43,7 +43,7 @@ async def inline(
             query= ""
     
     if query:
-        results = await dao.saves.search(query, limit=40, reverse=True)
+        results = await dao.saves.get(caption=query, limit=40, reverse=True)
     else:
         results = await dao.saves.get_all(limit=40, reverse=True)
 

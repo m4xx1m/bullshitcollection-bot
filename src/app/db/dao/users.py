@@ -9,9 +9,8 @@ class UsersDAO(BaseDAO):
     async def get(self, user_id: int) -> dto.User | None:
         if user := self._cache.get(user_id):
             return user 
-
-        instance = await self._get(user_id)
-        if instance:
+        
+        if instance := await self._get(user_id):
             user = instance.to_dto()
             self._cache[user_id] = user
             return user 
